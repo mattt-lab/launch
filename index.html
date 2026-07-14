@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Everything I track, live</title>
+<style>
+  :root {
+    --bg: #0b0b0b;
+    --panel: #111111;
+    --panel-2: #161616;
+    --border: #232323;
+    --border-soft: #1a1a1a;
+    --text: #f0f0f0;
+    --text-dim: #8a8a8a;
+    --text-faint: #4a4a4a;
+    --mono: ui-monospace, 'Cascadia Code', 'SFMono-Regular', Consolas, 'JetBrains Mono', monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    margin: 0;
+    min-height: 100%;
+  }
+
+  body {
+    background-image:
+      linear-gradient(var(--border-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border-soft) 1px, transparent 1px);
+    background-size: 42px 42px;
+    background-position: -1px -1px;
+    background-attachment: fixed;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(680px 420px at 12% -6%, rgba(225, 6, 0, 0.10), transparent 60%),
+      radial-gradient(620px 380px at 88% 0%, rgba(245, 197, 24, 0.08), transparent 60%),
+      radial-gradient(700px 460px at 50% 108%, rgba(34, 197, 94, 0.07), transparent 60%);
+    z-index: 0;
+  }
+
+  .page {
+    position: relative;
+    z-index: 1;
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 64px 24px 64px;
+  }
+
+  /* ---------- hero ---------- */
+
+  .hero { margin-bottom: 48px; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 14px;
+  }
+  .eyebrow b { color: var(--text-dim); font-weight: 600; }
+  h1 {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 10px;
+    text-wrap: balance;
+  }
+  .hero p {
+    font-size: 15px;
+    color: var(--text-dim);
+    max-width: 52ch;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* ---------- grid ---------- */
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  @media (max-width: 860px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 600px) {
+    .grid { grid-template-columns: 1fr; }
+    h1 { font-size: 27px; }
+    .page { padding-top: 40px; }
+  }
+
+  .tile {
+    --accent: #888;
+    position: relative;
+    grid-column: span 1;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 18px 16px;
+    text-decoration: none;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow: hidden;
+    transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
+    opacity: 0;
+    transform: translateY(10px);
+    animation: rise 0.5s ease forwards;
+  }
+  @keyframes rise { to { opacity: 1; transform: translateY(0); } }
+
+  .tile::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    opacity: 0.55;
+    transition: opacity 0.18s ease;
+  }
+  .tile::after {
+    content: "";
+    position: absolute;
+    inset: -40% -20% auto auto;
+    width: 220px; height: 220px;
+    background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+  }
+
+  .tile:hover, .tile:focus-visible {
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+    background: var(--panel-2);
+    transform: translateY(-3px);
+    outline: none;
+  }
+  .tile:hover::before, .tile:focus-visible::before { opacity: 1; }
+  .tile:hover::after, .tile:focus-visible::after { opacity: 0.10; }
+
+  .tile-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .tile-icon {
+    font-size: 20px;
+    line-height: 1;
+    filter: grayscale(0.15);
+  }
+  .status {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .status-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+  }
+  .status.is-live .status-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  .tile-name {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.005em;
+  }
+  .tile-desc {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    flex: 1;
+  }
+
+  .tile-meta {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-soft);
+  }
+  .tile-go {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.03em;
+    color: var(--text-dim);
+    transition: transform 0.18s ease, color 0.18s ease;
+  }
+  .tile:hover .tile-go, .tile:focus-visible .tile-go {
+    color: var(--accent);
+    transform: translateX(3px);
+  }
+
+  /* ---------- footer ---------- */
+
+  footer {
+    margin-top: 44px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--text-faint);
+    letter-spacing: 0.04em;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  footer .ok { color: #22c55e; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tile { animation: none; opacity: 1; transform: none; }
+    .status-dot { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="hero">
+    <div class="eyebrow">4 channels &nbsp;·&nbsp; <b>all systems nominal</b></div>
+    <h1>Everything I track, live.</h1>
+    <p>One place to jump into the dashboards I actually keep open — race weekends, tournaments, and positions.</p>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <footer>
+    <span><span class="ok">●</span> 4 apps · static, no backend</span>
+    <span id="footer-date"></span>
+  </footer>
+</div>
+
+<script>
+  const apps = [
+    {
+      icon: "🏎️", name: "F1 Dashboard", accent: "#e10600",
+      desc: "Race weekends, standings, and AI-written race wraps.",
+      status: "Race week", live: true,
+      href: "https://mattt-lab.github.io/f1-dashboard/"
+    },
+    {
+      icon: "🚴", name: "Tour de France", accent: "#f5c518",
+      desc: "Stage-by-stage storylines and all four jerseys.",
+      status: "Rest day", live: false,
+      href: "https://mattt-lab.github.io/tour-de-france/"
+    },
+    {
+      icon: "⚽", name: "World Cup 2026", accent: "#22c55e",
+      desc: "Groups, bracket, and what every match means.",
+      status: "Group stage — MD3", live: true,
+      href: "https://mattt-lab.github.io/world-cup/"
+    },
+    {
+      icon: "📈", name: "Portfolio Tracker", accent: "#6366f1",
+      desc: "Live positions, after-hours moves, AI storylines.",
+      status: "Market open", live: true,
+      href: "https://portfolio-tracker-gilt-eight.vercel.app/"
+    }
+  ];
+
+  const grid = document.getElementById("grid");
+  apps.forEach((a, i) => {
+    const tile = document.createElement("a");
+    tile.className = "tile";
+    tile.href = a.href;
+    tile.target = "_blank";
+    tile.rel = "noopener";
+    tile.style.setProperty("--accent", a.accent);
+    tile.style.animationDelay = (i * 0.06) + "s";
+    tile.innerHTML = `
+      <div class="tile-top">
+        <span class="tile-icon">${a.icon}</span>
+        <span class="status ${a.live ? "is-live" : ""}"><span class="status-dot"></span>${a.status}</span>
+      </div>
+      <div>
+        <div class="tile-name">${a.name}</div>
+        <div class="tile-desc">${a.desc}</div>
+      </div>
+      <div class="tile-meta">
+        <span class="tile-go">open →</span>
+      </div>
+    `;
+    grid.appendChild(tile);
+  });
+
+  document.getElementById("footer-date").textContent =
+    new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+</script>
+</body>
+</html>
