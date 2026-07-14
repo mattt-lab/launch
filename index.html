@@ -255,32 +255,156 @@
 </div>
 
 <script>
+  // ---- date helpers (all UTC-based, so status doesn't drift with viewer timezone) ----
+  function parseISO(iso) {
+    const [y, m, d] = iso.split("-").map(Number);
+    return Date.UTC(y, m - 1, d);
+  }
+  function todayISO() {
+    const d = new Date();
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+  }
+  function daysBetween(aIso, bIso) {
+    return Math.round((parseISO(bIso) - parseISO(aIso)) / 86400000);
+  }
+  function addDaysISO(iso, n) {
+    const d = new Date(parseISO(iso) + n * 86400000);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+  }
+
+  // ---- per-app live status ----
+  // F1 and World Cup read the same committed JSON their own dashboards use;
+  // Tour de France reads its route file. All three are same-origin (mattt-lab.github.io),
+  // so no CORS setup is needed. Portfolio Tracker's status is just NYSE market hours,
+  // computed locally rather than fetched.
+
+  async function computeF1Status() {
+    try {
+      const res = await fetch("https://api.jolpi.ca/ergast/f1/current/races.json?limit=100");
+      const data = await res.json();
+      const races = data.MRData.RaceTable.Races;
+      const today = todayISO();
+      for (const race of races) {
+        const weekendStart = addDaysISO(race.date, -2);
+        if (today >= weekendStart && today <= race.date) {
+          return { text: "Race week", live: true };
+        }
+      }
+      const next = races.find(r => r.date > today);
+      if (next) {
+        const days = daysBetween(today, next.date);
+        return { text: `${next.raceName.replace(" Grand Prix", " GP")} in ${days}d`, live: false };
+      }
+      return { text: "Season complete", live: false };
+    } catch {
+      return { text: "F1 Dashboard", live: false };
+    }
+  }
+
+  async function computeTdfStatus() {
+    try {
+      const res = await fetch("https://mattt-lab.github.io/tour-de-france/data/route.json");
+      const data = await res.json();
+      const stages = data.stages;
+      const today = todayISO();
+      const stage = stages.find(s => s.date === today);
+      if (stage) {
+        return stage.type === "rest"
+          ? { text: "Rest day", live: false }
+          : { text: `Stage ${stage.n}`, live: true };
+      }
+      if (today < stages[0].date) {
+        return { text: `Starts in ${daysBetween(today, stages[0].date)}d`, live: false };
+      }
+      if (today > stages[stages.length - 1].date) {
+        return { text: "Tour complete", live: false };
+      }
+      return { text: "Between stages", live: false };
+    } catch {
+      return { text: "Tour de France", live: false };
+    }
+  }
+
+  const WC_STAGE_LABELS = {
+    GROUP_STAGE: "Group Stage", LAST_32: "Round of 32", LAST_16: "Round of 16",
+    QUARTER_FINALS: "Quarterfinals", SEMI_FINALS: "Semifinals",
+    THIRD_PLACE: "3rd Place Playoff", FINAL: "Final"
+  };
+
+  async function computeWcStatus() {
+    try {
+      const res = await fetch("https://mattt-lab.github.io/world-cup/data/matches.json");
+      const matches = (await res.json()).matches;
+      const label = m => WC_STAGE_LABELS[m.stage] || m.stage;
+
+      const live = matches.find(m => m.status === "IN_PLAY" || m.status === "PAUSED");
+      if (live) return { text: `Live — ${label(live)}`, live: true };
+
+      const today = todayISO();
+      const todays = matches.filter(m =>
+        m.utcDate.slice(0, 10) === today && (m.status === "SCHEDULED" || m.status === "TIMED"));
+      if (todays.length) return { text: `${label(todays[0])} today`, live: false };
+
+      const upcoming = matches
+        .filter(m => (m.status === "SCHEDULED" || m.status === "TIMED") && m.utcDate.slice(0, 10) > today)
+        .sort((a, b) => a.utcDate.localeCompare(b.utcDate));
+      if (upcoming.length) {
+        const days = daysBetween(today, upcoming[0].utcDate.slice(0, 10));
+        return { text: `${label(upcoming[0])} in ${days}d`, live: false };
+      }
+      return { text: "Tournament complete", live: false };
+    } catch {
+      return { text: "World Cup 2026", live: false };
+    }
+  }
+
+  function computePortfolioStatus() {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York", hour12: false,
+      weekday: "short", hour: "2-digit", minute: "2-digit"
+    }).formatToParts(new Date());
+    const get = t => parts.find(p => p.type === t)?.value;
+    const weekday = get("weekday");
+    const mins = parseInt(get("hour"), 10) * 60 + parseInt(get("minute"), 10);
+
+    if (weekday === "Sat" || weekday === "Sun") return { text: "Market closed", live: false };
+    if (mins >= 570 && mins < 960) return { text: "Market open", live: true };      // 9:30–16:00 ET
+    if (mins >= 960 && mins < 1200) return { text: "After hours", live: true };     // 16:00–20:00 ET
+    if (mins >= 240 && mins < 570) return { text: "Pre-market", live: false };      // 4:00–9:30 ET
+    return { text: "Market closed", live: false };
+  }
+
   const apps = [
     {
-      icon: "🏎️", name: "F1 Dashboard", accent: "#e10600",
+      key: "f1", icon: "🏎️", name: "F1 Dashboard", accent: "#e10600",
       desc: "Race weekends, standings, and AI-written race wraps.",
-      status: "Race week", live: true,
-      href: "https://mattt-lab.github.io/f1-dashboard/"
+      href: "https://mattt-lab.github.io/f1-dashboard/",
+      statusFn: computeF1Status
     },
     {
-      icon: "🚴", name: "Tour de France", accent: "#f5c518",
+      key: "tdf", icon: "🚴", name: "Tour de France", accent: "#f5c518",
       desc: "Stage-by-stage storylines and all four jerseys.",
-      status: "Rest day", live: false,
-      href: "https://mattt-lab.github.io/tour-de-france/"
+      href: "https://mattt-lab.github.io/tour-de-france/",
+      statusFn: computeTdfStatus
     },
     {
-      icon: "⚽", name: "World Cup 2026", accent: "#22c55e",
+      key: "wc", icon: "⚽", name: "World Cup 2026", accent: "#22c55e",
       desc: "Groups, bracket, and what every match means.",
-      status: "Group stage — MD3", live: true,
-      href: "https://mattt-lab.github.io/world-cup/"
+      href: "https://mattt-lab.github.io/world-cup/",
+      statusFn: computeWcStatus
     },
     {
-      icon: "📈", name: "Portfolio Tracker", accent: "#6366f1",
+      key: "port", icon: "📈", name: "Portfolio Tracker", accent: "#6366f1",
       desc: "Live positions, after-hours moves, AI storylines.",
-      status: "Market open", live: true,
-      href: "https://portfolio-tracker-gilt-eight.vercel.app/"
+      href: "https://portfolio-tracker-gilt-eight.vercel.app/",
+      statusFn: null // synchronous, resolved immediately below
     }
   ];
+
+  function renderStatus(el, text, live) {
+    el.className = "status" + (live ? " is-live" : "");
+    el.innerHTML = `<span class="status-dot"></span>${text}`;
+  }
 
   const grid = document.getElementById("grid");
   apps.forEach((a, i) => {
@@ -294,7 +418,7 @@
     tile.innerHTML = `
       <div class="tile-top">
         <span class="tile-icon">${a.icon}</span>
-        <span class="status ${a.live ? "is-live" : ""}"><span class="status-dot"></span>${a.status}</span>
+        <span class="status" id="status-${a.key}"><span class="status-dot"></span>···</span>
       </div>
       <div>
         <div class="tile-name">${a.name}</div>
@@ -305,6 +429,14 @@
       </div>
     `;
     grid.appendChild(tile);
+
+    const statusEl = tile.querySelector(`#status-${a.key}`);
+    if (a.statusFn) {
+      a.statusFn().then(({ text, live }) => renderStatus(statusEl, text, live));
+    } else {
+      const { text, live } = computePortfolioStatus();
+      renderStatus(statusEl, text, live);
+    }
   });
 
   document.getElementById("footer-date").textContent =
