@@ -19,11 +19,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Launch">
-<meta name="description" content="One place to jump into the dashboards I actually keep open — race weekends, tournaments, and positions.">
+<meta name="description" content="One place for all of my dashboards — race weekends, tournaments, portfolios, and other things.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Launch">
 <meta property="og:title" content="Everything I track, live">
-<meta property="og:description" content="One place to jump into the dashboards I actually keep open — race weekends, tournaments, and positions.">
+<meta property="og:description" content="One place for all of my dashboards — race weekends, tournaments, portfolios, and other things.">
 <meta property="og:image" content="https://mattt-lab.github.io/launch/apple-touch-icon.png">
 <meta property="og:url" content="https://mattt-lab.github.io/launch/">
 <meta name="twitter:card" content="summary">
@@ -174,13 +174,14 @@
   .tile:hover::after, .tile:focus-visible::after { opacity: 0.10; }
 
   /* Season/tournament over — still browsable, just visually deprioritized.
-     Overriding --accent to a neutral gray mutes the top edge, the status
-     text/dot, and the hover glow in one place, since they all key off
-     that one variable already — but the glow/lift/pulse effects below are
-     themselves "look, something's happening" cues, so those get killed
-     outright rather than just dimmed, to actually read as dormant. */
+     --accent itself is overridden in JS (renderStatus), not here — it's
+     set as an inline style per tile at creation, and inline style always
+     beats a class rule for the same property regardless of specificity,
+     so a CSS override here would silently lose. The glow/lift/pulse
+     effects below are themselves "look, something's happening" cues, so
+     those get killed outright rather than just dimmed, to actually read
+     as dormant. */
   .tile.is-inactive {
-    --accent: #4a4a4a;
     opacity: 0.4;
   }
   .tile.is-inactive .tile-icon {
@@ -296,13 +297,13 @@
   <div class="hero">
     <div class="eyebrow">4 channels &nbsp;·&nbsp; <b>all systems nominal</b></div>
     <h1>Everything I track, live.</h1>
-    <p>One place to jump into the dashboards I actually keep open — race weekends, tournaments, and positions.</p>
+    <p>One place for all of my dashboards — race weekends, tournaments, portfolios, and other things.</p>
   </div>
 
   <div class="grid" id="grid"></div>
 
   <footer>
-    <span><span class="ok">●</span> 4 apps · static, no backend · v1.2</span>
+    <span><span class="ok">●</span> 4 apps · static, no backend · v1.3</span>
     <span id="footer-date"></span>
   </footer>
 </div>
@@ -536,7 +537,12 @@
   function renderStatus(tile, el, text, live) {
     el.className = "status" + (live ? " is-live" : "");
     el.innerHTML = `<span class="status-dot"></span>${text}`;
-    tile.classList.toggle("is-inactive", isInactiveStatus(text));
+    const inactive = isInactiveStatus(text);
+    tile.classList.toggle("is-inactive", inactive);
+    // Set inline, not via a CSS class rule — --accent is already set inline
+    // per-tile at creation, and inline always wins over a class selector
+    // for the same property, so a class-based override would never apply.
+    if (inactive) tile.style.setProperty("--accent", "#4a4a4a");
   }
 
   const grid = document.getElementById("grid");
