@@ -174,18 +174,33 @@
   .tile:hover::after, .tile:focus-visible::after { opacity: 0.10; }
 
   /* Season/tournament over — still browsable, just visually deprioritized.
-     Overriding --accent to a neutral gray also mutes the top edge, the
-     status text/dot, and the hover glow in one place, since they all key
-     off that one variable already. */
+     Overriding --accent to a neutral gray mutes the top edge, the status
+     text/dot, and the hover glow in one place, since they all key off
+     that one variable already — but the glow/lift/pulse effects below are
+     themselves "look, something's happening" cues, so those get killed
+     outright rather than just dimmed, to actually read as dormant. */
   .tile.is-inactive {
-    --accent: #555;
-    opacity: 0.6;
+    --accent: #4a4a4a;
+    opacity: 0.4;
   }
   .tile.is-inactive .tile-icon {
     filter: grayscale(1);
   }
+  .tile.is-inactive .status-dot {
+    box-shadow: none;
+  }
+  .tile.is-inactive::before {
+    opacity: 0.25;
+  }
   .tile.is-inactive:hover, .tile.is-inactive:focus-visible {
-    opacity: 0.85;
+    opacity: 0.65;
+    transform: none;
+  }
+  .tile.is-inactive:hover::before, .tile.is-inactive:focus-visible::before {
+    opacity: 0.25;
+  }
+  .tile.is-inactive:hover::after, .tile.is-inactive:focus-visible::after {
+    opacity: 0;
   }
 
   .tile-top {
