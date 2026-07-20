@@ -173,6 +173,21 @@
   .tile:hover::before, .tile:focus-visible::before { opacity: 1; }
   .tile:hover::after, .tile:focus-visible::after { opacity: 0.10; }
 
+  /* Season/tournament over — still browsable, just visually deprioritized.
+     Overriding --accent to a neutral gray also mutes the top edge, the
+     status text/dot, and the hover glow in one place, since they all key
+     off that one variable already. */
+  .tile.is-inactive {
+    --accent: #555;
+    opacity: 0.6;
+  }
+  .tile.is-inactive .tile-icon {
+    filter: grayscale(1);
+  }
+  .tile.is-inactive:hover, .tile.is-inactive:focus-visible {
+    opacity: 0.85;
+  }
+
   .tile-top {
     display: flex;
     align-items: center;
@@ -478,22 +493,35 @@
       statusFn: computeTdfStatus
     },
     {
-      key: "wc", icon: "⚽", name: "World Cup 2026", accent: "#22c55e",
-      desc: "Groups, bracket, and what every match means.",
-      href: "https://mattt-lab.github.io/world-cup/wc-dashboard.html",
-      statusFn: computeWcStatus
-    },
-    {
       key: "port", icon: "📈", name: "Portfolio Tracker", accent: "#6366f1",
       desc: "Live positions, after-hours moves, AI storylines.",
       href: "https://portfolio-tracker-gilt-eight.vercel.app/",
       statusFn: null // synchronous, resolved immediately below
+    },
+    {
+      // Season over — kept last in the list and visually muted (see
+      // isInactiveStatus below) rather than removed, since the site is
+      // still fully browsable. Will naturally un-mute if this ever
+      // points at a future tournament with its own live status again.
+      key: "wc", icon: "⚽", name: "World Cup 2026", accent: "#22c55e",
+      desc: "Groups, bracket, and what every match means.",
+      href: "https://mattt-lab.github.io/world-cup/wc-dashboard.html",
+      statusFn: computeWcStatus
     }
   ];
 
-  function renderStatus(el, text, live) {
+  // Any status ending in "complete" (World Cup's "Tournament complete",
+  // TdF's "Tour complete", F1's eventual "Season complete") marks a tile
+  // as inactive — same signal already used to pick the status text,
+  // just re-read here to drive the visual treatment too.
+  function isInactiveStatus(text) {
+    return /\bcomplete\b/i.test(text);
+  }
+
+  function renderStatus(tile, el, text, live) {
     el.className = "status" + (live ? " is-live" : "");
     el.innerHTML = `<span class="status-dot"></span>${text}`;
+    tile.classList.toggle("is-inactive", isInactiveStatus(text));
   }
 
   const grid = document.getElementById("grid");
@@ -522,10 +550,10 @@
 
     const statusEl = tile.querySelector(`#status-${a.key}`);
     if (a.statusFn) {
-      a.statusFn().then(({ text, live }) => renderStatus(statusEl, text, live));
+      a.statusFn().then(({ text, live }) => renderStatus(tile, statusEl, text, live));
     } else {
       const { text, live } = computePortfolioStatus();
-      renderStatus(statusEl, text, live);
+      renderStatus(tile, statusEl, text, live);
     }
   });
 
